@@ -1,0 +1,5 @@
+{
+  "name": "Minecraft Server SaaS",
+  "description": "A modern SaaS platform to create and manage Minecraft servers on Google Cloud in seconds.",
+  "requestFramePermissions": []
+}
