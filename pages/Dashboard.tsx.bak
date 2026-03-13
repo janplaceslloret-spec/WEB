@@ -2,7 +2,6 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Session } from '@supabase/supabase-js';
 import { supabase } from '../services/supabaseClient';
-import ModsPanel from './ModsPanel';
 
 interface DashboardProps {
   session: Session;
@@ -244,8 +243,7 @@ const Dashboard: React.FC<DashboardProps> = ({ session: initialSession }) => {
             </div>
           ) : activeServer ? (
             /* TARJETA DE SERVIDOR ACTIVO */
-            <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
               <div className="lg:col-span-2 bg-zinc-900/40 border border-zinc-800 rounded-3xl overflow-hidden shadow-2xl backdrop-blur-sm">
                 <div className="p-8 border-b border-zinc-800 bg-zinc-900/20">
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
@@ -315,16 +313,6 @@ const Dashboard: React.FC<DashboardProps> = ({ session: initialSession }) => {
                 </div>
                 <div className="absolute -right-10 -top-10 w-40 h-40 bg-indigo-500/10 blur-[80px] rounded-full"></div>
               </div>
-            </div>
-
-            {/* PANEL DE MODS */}
-            {activeServer.status_server === 'running' && (
-              <ModsPanel
-                serverId={activeServer.id}
-                serverType={activeServer.server_type}
-                mcVersion={activeServer.mc_version}
-              />
-            )}
             </div>
           ) : (
             /* ESTADO VACÍO */

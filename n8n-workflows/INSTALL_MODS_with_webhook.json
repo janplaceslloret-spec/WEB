@@ -1,0 +1,169 @@
+{
+  "name": "INSTALL_MODS",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "install-mod",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "webhook-install",
+      "name": "Webhook Install Mod",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 300],
+      "webhookId": "install-mod"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extraer datos del payload\nconst body = $input.first().json.body || $input.first().json;\n\nconst serverId  = body.server_id;\nconst modId     = body.mod_id;\nconst modName   = body.mod_name;\nconst source    = body.source || 'modrinth';\nconst mcVersion = body.mc_version;\nconst loader    = body.loader || 'fabric';\n\nif (!serverId || !modId) {\n  throw new Error('Faltan server_id o mod_id');\n}\n\nreturn [{ json: { serverId, modId, modName, source, mcVersion, loader } }];"
+      },
+      "id": "validate-input",
+      "name": "Validar Input",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "url": "=https://api.modrinth.com/v2/project/{{ $json.modId }}/version",
+        "options": {
+          "queryParameters": {
+            "parameters": [
+              { "name": "game_versions", "value": "={{ '[\"' + $json.mcVersion + '\"]' }}" },
+              { "name": "loaders", "value": "={{ '[\"' + $json.loader + '\"]' }}" }
+            ]
+          }
+        }
+      },
+      "id": "get-mod-version",
+      "name": "Obtener Versión Modrinth",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Seleccionar la versión más reciente compatible\nconst versions = $input.first().json;\nif (!versions || versions.length === 0) {\n  throw new Error('No hay versión compatible del mod para esta versión de MC y loader');\n}\n\nconst latest = versions[0];\nconst file   = latest.files?.find(f => f.primary) || latest.files?.[0];\n\nif (!file) throw new Error('No se encontró archivo del mod');\n\nreturn [{\n  json: {\n    ...$('Validar Input').first().json,\n    downloadUrl: file.url,\n    fileName:    file.filename,\n    modVersion:  latest.version_number,\n  }\n}];"
+      },
+      "id": "select-version",
+      "name": "Seleccionar Versión",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "resource": "rows",
+        "operation": "getAll",
+        "tableId": "mc_servers",
+        "filters": {
+          "conditions": [
+            { "keyName": "id", "keyValue": "={{ $json.serverId }}" }
+          ]
+        },
+        "returnAll": false,
+        "limit": 1
+      },
+      "id": "get-server-info",
+      "name": "Obtener Info Servidor",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [1120, 300],
+      "credentials": { "supabaseApi": { "id": "supabase-cred", "name": "Supabase CloudCraft" } }
+    },
+    {
+      "parameters": {
+        "command": "=cd /opt/minecraft/{{ $('Obtener Info Servidor').first().json.server_name }} && wget -q '{{ $('Seleccionar Versión').first().json.downloadUrl }}' -O mods/{{ $('Seleccionar Versión').first().json.fileName }} && echo 'OK'"
+      },
+      "id": "ssh-download",
+      "name": "SSH: Descargar Mod",
+      "type": "n8n-nodes-base.ssh",
+      "typeVersion": 1,
+      "position": [1340, 300],
+      "credentials": { "sshPassword": { "id": "ssh-cred", "name": "VM Minecraft" } }
+    },
+    {
+      "parameters": {
+        "resource": "rows",
+        "operation": "update",
+        "tableId": "server_mods",
+        "filters": {
+          "conditions": [
+            { "keyName": "server_id", "keyValue": "={{ $('Seleccionar Versión').first().json.serverId }}" },
+            { "keyName": "mod_id",    "keyValue": "={{ $('Seleccionar Versión').first().json.modId }}" }
+          ]
+        },
+        "fieldsUi": {
+          "fieldValues": [
+            { "fieldId": "status",    "fieldValue": "installed" },
+            { "fieldId": "version",   "fieldValue": "={{ $('Seleccionar Versión').first().json.modVersion }}" },
+            { "fieldId": "file_name", "fieldValue": "={{ $('Seleccionar Versión').first().json.fileName }}" },
+            { "fieldId": "updated_at","fieldValue": "={{ new Date().toISOString() }}" }
+          ]
+        }
+      },
+      "id": "update-supabase-ok",
+      "name": "Supabase: Marcar Instalado",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [1560, 200],
+      "credentials": { "supabaseApi": { "id": "supabase-cred", "name": "Supabase CloudCraft" } }
+    },
+    {
+      "parameters": {
+        "resource": "rows",
+        "operation": "update",
+        "tableId": "server_mods",
+        "filters": {
+          "conditions": [
+            { "keyName": "server_id", "keyValue": "={{ $('Seleccionar Versión').first().json.serverId }}" },
+            { "keyName": "mod_id",    "keyValue": "={{ $('Seleccionar Versión').first().json.modId }}" }
+          ]
+        },
+        "fieldsUi": {
+          "fieldValues": [
+            { "fieldId": "status",    "fieldValue": "error" },
+            { "fieldId": "error_msg", "fieldValue": "={{ $json.message || 'Error desconocido' }}" },
+            { "fieldId": "updated_at","fieldValue": "={{ new Date().toISOString() }}" }
+          ]
+        }
+      },
+      "id": "update-supabase-error",
+      "name": "Supabase: Marcar Error",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [1560, 420],
+      "credentials": { "supabaseApi": { "id": "supabase-cred", "name": "Supabase CloudCraft" } }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={ \"status\": \"installing\", \"message\": \"Mod en cola de instalación\" }"
+      },
+      "id": "respond-ok",
+      "name": "Responder OK",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1780, 200]
+    }
+  ],
+  "connections": {
+    "Webhook Install Mod":     { "main": [[{ "node": "Validar Input",           "type": "main", "index": 0 }]] },
+    "Validar Input":           { "main": [[{ "node": "Obtener Versión Modrinth", "type": "main", "index": 0 }]] },
+    "Obtener Versión Modrinth":{ "main": [[{ "node": "Seleccionar Versión",      "type": "main", "index": 0 }]] },
+    "Seleccionar Versión":     { "main": [[{ "node": "Obtener Info Servidor",    "type": "main", "index": 0 }]] },
+    "Obtener Info Servidor":   { "main": [[{ "node": "SSH: Descargar Mod",       "type": "main", "index": 0 }]] },
+    "SSH: Descargar Mod":      { "main": [[{ "node": "Supabase: Marcar Instalado","type": "main", "index": 0 }]] },
+    "Supabase: Marcar Instalado":{ "main": [[{ "node": "Responder OK",           "type": "main", "index": 0 }]] }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner",
+    "errorWorkflow": ""
+  },
+  "active": true,
+  "_comment": "INSTRUCCIONES: Importar en n8n > Workflows > Import. Configurar credenciales: Supabase (URL + Service Role Key) y SSH (VM Minecraft 46.225.115.78). Webhook URL resultante: https://snack55-n8n1.q7pa8v.easypanel.host/webhook/install-mod"
+}

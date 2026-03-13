@@ -1,0 +1,128 @@
+{
+  "name": "UNINSTALL_MOD",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "uninstall-mod",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "webhook-uninstall",
+      "name": "Webhook Uninstall Mod",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 300],
+      "webhookId": "uninstall-mod"
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body || $input.first().json;\n\nconst serverId = body.server_id;\nconst modDbId  = body.mod_db_id;  // UUID de server_mods\nconst fileName = body.file_name;\nconst modName  = body.mod_name;\n\nif (!serverId || !modDbId) throw new Error('Faltan server_id o mod_db_id');\n\nreturn [{ json: { serverId, modDbId, fileName, modName } }];"
+      },
+      "id": "validate-uninstall",
+      "name": "Validar Input",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "resource": "rows",
+        "operation": "getAll",
+        "tableId": "mc_servers",
+        "filters": {
+          "conditions": [
+            { "keyName": "id", "keyValue": "={{ $json.serverId }}" }
+          ]
+        },
+        "returnAll": false,
+        "limit": 1
+      },
+      "id": "get-server-info",
+      "name": "Obtener Info Servidor",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [680, 300],
+      "credentials": { "supabaseApi": { "id": "supabase-cred", "name": "Supabase CloudCraft" } }
+    },
+    {
+      "parameters": {
+        "command": "=rm -f /opt/minecraft/{{ $('Obtener Info Servidor').first().json.server_name }}/mods/{{ $('Validar Input').first().json.fileName }} && echo 'DELETED'"
+      },
+      "id": "ssh-delete",
+      "name": "SSH: Borrar Mod",
+      "type": "n8n-nodes-base.ssh",
+      "typeVersion": 1,
+      "position": [900, 300],
+      "credentials": { "sshPassword": { "id": "ssh-cred", "name": "VM Minecraft" } }
+    },
+    {
+      "parameters": {
+        "resource": "rows",
+        "operation": "delete",
+        "tableId": "server_mods",
+        "filters": {
+          "conditions": [
+            { "keyName": "id", "keyValue": "={{ $('Validar Input').first().json.modDbId }}" }
+          ]
+        }
+      },
+      "id": "delete-supabase",
+      "name": "Supabase: Borrar Registro",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [1120, 300],
+      "credentials": { "supabaseApi": { "id": "supabase-cred", "name": "Supabase CloudCraft" } }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={ \"status\": \"uninstalled\", \"message\": \"Mod desinstalado correctamente\" }"
+      },
+      "id": "respond-ok",
+      "name": "Responder OK",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1340, 200]
+    },
+    {
+      "parameters": {
+        "resource": "rows",
+        "operation": "update",
+        "tableId": "server_mods",
+        "filters": {
+          "conditions": [
+            { "keyName": "id", "keyValue": "={{ $('Validar Input').first().json.modDbId }}" }
+          ]
+        },
+        "fieldsUi": {
+          "fieldValues": [
+            { "fieldId": "status",    "fieldValue": "error" },
+            { "fieldId": "error_msg", "fieldValue": "Error al desinstalar mod" },
+            { "fieldId": "updated_at","fieldValue": "={{ new Date().toISOString() }}" }
+          ]
+        }
+      },
+      "id": "update-error",
+      "name": "Supabase: Marcar Error",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [1340, 420],
+      "credentials": { "supabaseApi": { "id": "supabase-cred", "name": "Supabase CloudCraft" } }
+    }
+  ],
+  "connections": {
+    "Webhook Uninstall Mod": { "main": [[{ "node": "Validar Input",          "type": "main", "index": 0 }]] },
+    "Validar Input":         { "main": [[{ "node": "Obtener Info Servidor",  "type": "main", "index": 0 }]] },
+    "Obtener Info Servidor": { "main": [[{ "node": "SSH: Borrar Mod",        "type": "main", "index": 0 }]] },
+    "SSH: Borrar Mod":       { "main": [[{ "node": "Supabase: Borrar Registro","type": "main", "index": 0 }]] },
+    "Supabase: Borrar Registro":{ "main": [[{ "node": "Responder OK",        "type": "main", "index": 0 }]] }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "active": true
+  },
+  "active": true,
+  "_comment": "INSTRUCCIONES: Importar en n8n. Webhook URL: https://snack55-n8n1.q7pa8v.easypanel.host/webhook/uninstall-mod"
+}
