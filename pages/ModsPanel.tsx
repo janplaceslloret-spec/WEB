@@ -39,8 +39,10 @@ const N8N_BASE = 'https://snack55-n8n1.q7pa8v.easypanel.host/webhook';
 const INSTALL_WEBHOOK   = `${N8N_BASE}/install-mod`;
 const UNINSTALL_WEBHOOK = `${N8N_BASE}/uninstall-mod`;
 
-// ─── Modrinth API (pública, sin key) ─────────────────────────────────────────
-const MODRINTH_API = 'https://api.modrinth.com/v2';
+// ─── CurseForge API ───────────────────────────────────────────────────────────
+const CURSEFORGE_API     = 'https://api.curseforge.com/v1';
+const CURSEFORGE_API_KEY = '$2a$10$i3o4s8VW2VIvwciqCpT5l..9d1L00iAtrngYYN/QsqYpkFRfnjD.q';
+const CURSEFORGE_GAME_ID = 432; // Minecraft
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -132,7 +134,7 @@ const ModsPanel: React.FC<ModsPanelProps> = ({ serverId, serverType, mcVersion }
     return () => { supabase.removeChannel(channel); };
   }, [serverId, fetchInstalledMods]);
 
-  // ── Búsqueda en Modrinth ──
+  // ── Búsqueda en CurseForge ──
   useEffect(() => {
     if (!searchQuery.trim() || activeTab !== 'search') {
       setSearchResults([]);
@@ -142,32 +144,30 @@ const ModsPanel: React.FC<ModsPanelProps> = ({ serverId, serverType, mcVersion }
     const delay = setTimeout(async () => {
       setIsSearching(true);
       try {
-        const loader  = loaderFromServerType(serverType);
-        const version = mcVersion || '';
-
-        const facets: string[][] = [['project_type:mod']];
-        if (loader && loader !== 'paper') facets.push([`categories:${loader}`]);
-        if (version) facets.push([`versions:${version}`]);
-
         const params = new URLSearchParams({
-          query: searchQuery,
-          facets: JSON.stringify(facets),
-          limit: '12',
+          gameId:       String(CURSEFORGE_GAME_ID),
+          searchFilter: searchQuery,
+          pageSize:     '12',
         });
 
-        const res  = await fetch(`${MODRINTH_API}/search?${params}`);
+        const res  = await fetch(`${CURSEFORGE_API}/mods/search?${params}`, {
+          headers: {
+            'x-api-key': CURSEFORGE_API_KEY,
+            'Content-Type': 'application/json',
+          },
+        });
         const data = await res.json();
 
-        const results: ModSearchResult[] = (data.hits || []).map((h: any) => ({
-          id:             h.project_id,
-          name:           h.title,
-          description:    h.description,
-          downloads:      h.downloads,
-          icon_url:       h.icon_url || null,
-          source:         'modrinth' as const,
-          categories:     h.categories || [],
-          game_versions:  h.versions  || [],
-          latest_version: h.versions?.[0] || undefined,
+        const results: ModSearchResult[] = (data.data || []).map((h: any) => ({
+          id:             String(h.id),
+          name:           h.name,
+          description:    h.summary || '',
+          downloads:      h.downloadCount || 0,
+          icon_url:       h.logo?.thumbnailUrl || null,
+          source:         'curseforge' as const,
+          categories:     (h.categories || []).map((c: any) => c.name),
+          game_versions:  [],
+          latest_version: h.latestFiles?.[0]?.fileName || undefined,
         }));
 
         setSearchResults(results);
