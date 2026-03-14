@@ -1,0 +1,187 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Jarvis War Room</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="bg-orb orb-1"></div>
+    <div class="bg-orb orb-2"></div>
+    <div class="bg-grid"></div>
+
+    <div class="app-shell">
+      <aside class="sidebar glass">
+        <div class="brand">
+          <div class="brand-mark">✦</div>
+          <div>
+            <h1>Jarvis War Room</h1>
+            <p>Panel operativo del equipo de agentes</p>
+          </div>
+        </div>
+
+        <section class="panel compact neon-border">
+          <div class="section-kicker">INPUT</div>
+          <h2>Colgar tarea</h2>
+          <label>
+            Qué necesitas
+            <textarea id="taskInput" placeholder="Ej: Quiero que arregléis la instalación de mods y me enseñéis cómo lo habéis delegado"></textarea>
+          </label>
+          <div class="two-col">
+            <label>
+              Prioridad
+              <select id="priorityInput">
+                <option>Crítica</option>
+                <option selected>Alta</option>
+                <option>Media</option>
+                <option>Baja</option>
+              </select>
+            </label>
+            <label>
+              Equipo inicial
+              <select id="routeInput">
+                <option selected>Jarvis</option>
+                <option>CEO Desarrollo</option>
+                <option>dev-web</option>
+                <option>dev-backend</option>
+                <option>dev-n8n</option>
+                <option>dev-qa</option>
+              </select>
+            </label>
+          </div>
+          <button id="createTaskBtn" class="primary-btn">Crear misión</button>
+        </section>
+
+        <section class="panel compact">
+          <div class="section-kicker">OVERVIEW</div>
+          <h2>Resumen ejecutivo</h2>
+          <div class="stats-grid">
+            <div class="stat-card glow-blue"><span id="statAgents">6</span><small>Agentes</small></div>
+            <div class="stat-card glow-cyan"><span id="statBusy">4</span><small>Activos</small></div>
+            <div class="stat-card glow-violet"><span id="statTasks">4</span><small>Misiones</small></div>
+            <div class="stat-card glow-red"><span id="statCost">$0.73</span><small>Coste hoy</small></div>
+          </div>
+        </section>
+
+        <section class="panel compact">
+          <div class="section-kicker">SYSTEM</div>
+          <h2>Política de trabajo</h2>
+          <ul class="clean bullets">
+            <li>Jarvis coordina, no pica código salvo excepción.</li>
+            <li>CEO Desarrollo divide por especialidad.</li>
+            <li>Workers ejecutan dentro de su campo.</li>
+            <li>Se muestra razonamiento resumido, no pensamiento bruto completo.</li>
+          </ul>
+        </section>
+      </aside>
+
+      <main class="main-content">
+        <header class="topbar glass">
+          <div>
+            <div class="section-kicker">LIVE COMMAND</div>
+            <h2>Oficina visual de agentes</h2>
+            <p>Jerarquía, delegación, actividad, coste, progreso y trazabilidad de cada tarea.</p>
+          </div>
+          <div class="legend">
+            <span class="pill green">Libre</span>
+            <span class="pill blue">Trabajando</span>
+            <span class="pill amber">Revisión</span>
+            <span class="pill red">Bloqueado</span>
+          </div>
+        </header>
+
+        <section class="hero-row">
+          <div class="hero-card glass neon-border">
+            <div class="section-kicker">MISSION FLOW</div>
+            <h3>Cómo baja una orden</h3>
+            <div id="delegationFlow" class="delegation-flow"></div>
+          </div>
+          <div class="hero-card glass">
+            <div class="section-kicker">ACTIVE OBJECTIVE</div>
+            <h3 id="heroTaskTitle">Fiabilidad total al instalar mods</h3>
+            <p id="heroTaskText">Blindar la cadena SERVER MANAGER → INSTALL_MODS → respuesta final con evidencia por worker.</p>
+          </div>
+        </section>
+
+        <section class="layout-grid">
+          <div class="panel hierarchy-panel glass">
+            <div class="panel-head">
+              <div>
+                <div class="section-kicker">ORG CHART</div>
+                <h2>Jerarquía</h2>
+              </div>
+              <span class="muted">Quién decide y quién ejecuta</span>
+            </div>
+            <div id="hierarchyTree" class="hierarchy-tree"></div>
+          </div>
+
+          <div class="panel workers-panel glass">
+            <div class="panel-head">
+              <div>
+                <div class="section-kicker">TEAM</div>
+                <h2>Agentes</h2>
+              </div>
+              <span class="muted">Modelo, coste, foco y estado</span>
+            </div>
+            <div id="workersGrid" class="workers-grid"></div>
+          </div>
+
+          <div class="panel tasks-panel glass">
+            <div class="panel-head">
+              <div>
+                <div class="section-kicker">KANBAN</div>
+                <h2>Tablón de tareas</h2>
+              </div>
+              <span class="muted">Entrada → Delegación → Ejecución → Hecho</span>
+            </div>
+            <div class="kanban">
+              <div class="kanban-column">
+                <h3>Entrada</h3>
+                <div id="colInbox" class="kanban-list"></div>
+              </div>
+              <div class="kanban-column">
+                <h3>Delegadas</h3>
+                <div id="colDelegated" class="kanban-list"></div>
+              </div>
+              <div class="kanban-column">
+                <h3>En ejecución</h3>
+                <div id="colDoing" class="kanban-list"></div>
+              </div>
+              <div class="kanban-column">
+                <h3>Hecho</h3>
+                <div id="colDone" class="kanban-list"></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="panel activity-panel glass">
+            <div class="panel-head">
+              <div>
+                <div class="section-kicker">ACTIVITY</div>
+                <h2>Feed operativo</h2>
+              </div>
+              <span class="muted">Eventos recientes del equipo</span>
+            </div>
+            <div id="activityFeed" class="activity-feed"></div>
+          </div>
+
+          <div class="panel detail-panel glass neon-border">
+            <div class="panel-head">
+              <div>
+                <div class="section-kicker">TRACE</div>
+                <h2>Centro de detalle</h2>
+              </div>
+              <span class="muted">Estado, razonamiento resumido, coste y jerarquía</span>
+            </div>
+            <div id="taskDetail" class="task-detail empty-state">
+              Selecciona una tarea para ver delegación, evidencia, razonamiento resumido y coste.
+            </div>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <script src="./app.js"></script>
+  </body>
+</html>
